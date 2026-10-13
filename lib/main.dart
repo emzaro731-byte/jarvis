@@ -312,6 +312,17 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
         Expanded(child: _buildPage()),
         _bottomDock(),
       ])),
+    floatingActionButton: FloatingActionButton(
+      heroTag: 'jarvisFloatingAI',
+      backgroundColor: const Color(0xFF19C76A),
+      foregroundColor: const Color(0xFF04130A),
+      tooltip: 'Activate JARVIS AI',
+      onPressed: () {
+        setState(() => page = 'AI');
+        _jumpBottom();
+      },
+      child: const Icon(Icons.auto_awesome_rounded, size: 28),
+    ),
     ),
   );
 
