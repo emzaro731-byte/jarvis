@@ -53,6 +53,7 @@ jobs:
           for adaptive in (res / 'mipmap-anydpi-v26' / 'ic_launcher.xml', res / 'mipmap-anydpi-v26' / 'ic_launcher_round.xml'):
               if adaptive.exists(): adaptive.unlink()
           print(f'Installed exact repository JARVIS artwork from {source_path}.')
+          PY
           cd /tmp/jarvis_flutter
           flutter pub get
       - name: Install stable Android NDK
