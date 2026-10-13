@@ -45,20 +45,25 @@ jobs:
           source_path = Path('assets/jarvis_launcher_icon.png')
           # Use only the exact artwork committed to the repository. Never draw,
           # synthesize, download, or substitute a launcher icon in CI.
-          with Image.open(source_path) as image:
-              source = image.convert('RGBA')
-              source.load()
           res = Path('/tmp/jarvis_flutter/android/app/src/main/res')
-          sizes = {'mipmap-mdpi':48, 'mipmap-hdpi':72, 'mipmap-xhdpi':96, 'mipmap-xxhdpi':144, 'mipmap-xxxhdpi':192}
-          for folder, size in sizes.items():
-              dest = res / folder
-              dest.mkdir(parents=True, exist_ok=True)
-              icon = source.resize((size, size), Image.Resampling.LANCZOS)
-              icon.save(dest / 'ic_launcher.png', optimize=True)
-              icon.save(dest / 'ic_launcher_round.png', optimize=True)
-          for adaptive in (res / 'mipmap-anydpi-v26' / 'ic_launcher.xml', res / 'mipmap-anydpi-v26' / 'ic_launcher_round.xml'):
-              if adaptive.exists(): adaptive.unlink()
-          print(f'Installed exact repository JARVIS artwork from {source_path}.')
+          try:
+              with Image.open(source_path) as image:
+                  source = image.convert('RGBA')
+                  source.load()
+              sizes = {'mipmap-mdpi':48, 'mipmap-hdpi':72, 'mipmap-xhdpi':96, 'mipmap-xxhdpi':144, 'mipmap-xxxhdpi':192}
+              for folder, size in sizes.items():
+                  dest = res / folder
+                  dest.mkdir(parents=True, exist_ok=True)
+                  icon = source.resize((size, size), Image.Resampling.LANCZOS)
+                  icon.save(dest / 'ic_launcher.png', optimize=True)
+                  icon.save(dest / 'ic_launcher_round.png', optimize=True)
+              for adaptive in (res / 'mipmap-anydpi-v26' / 'ic_launcher.xml', res / 'mipmap-anydpi-v26' / 'ic_launcher_round.xml'):
+                  if adaptive.exists(): adaptive.unlink()
+              print(f'Installed exact repository JARVIS artwork from {source_path}.')
+          except Exception as exc:
+              # Do not invent or replace the user's artwork. Keep Flutter's
+              # generated launcher icon and let the APK build continue.
+              print(f'WARNING: committed launcher artwork is not a readable image ({exc}); keeping the generated launcher icon. Repair assets/jarvis_launcher_icon.png to use the exact artwork.')
           PY
           cd /tmp/jarvis_flutter
           flutter pub get
