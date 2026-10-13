@@ -24,14 +24,18 @@ class JarvisApp extends StatelessWidget {
     title: 'Mavis AI',
     debugShowCheckedModeBanner: false,
     theme: ThemeData.dark().copyWith(
+      useMaterial3: true,
       scaffoldBackgroundColor: bg,
-      colorScheme: ColorScheme.fromSeed(seedColor: cyan, brightness: Brightness.dark),
-      appBarTheme: const AppBarTheme(backgroundColor: bg, foregroundColor: cyan),
+      colorScheme: ColorScheme.fromSeed(seedColor: cyan, brightness: Brightness.dark, surface: const Color(0xFF081426)),
+      textTheme: ThemeData.dark().textTheme.apply(bodyColor: const Color(0xFFF0F8FF), displayColor: const Color(0xFFF0F8FF)),
+      appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, foregroundColor: cyan, elevation: 0),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF0A1B30),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0x6658E7FF))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0x6658E7FF))),
+        fillColor: const Color(0xAA071426),
+        hintStyle: const TextStyle(color: Color(0xFF8EA9C3)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0x6658E7FF))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0x6658E7FF))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: cyan, width: 1.4)),
       ),
     ),
     home: const JarvisHome(),
@@ -517,25 +521,40 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF0A2540), Color(0xFF030914), Color(0xFF080D20)]),
-      ),
-      child: SafeArea(child: Column(children: [
+    backgroundColor: bg,
+    body: Stack(children: [
+      Positioned.fill(child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF071D35), Color(0xFF02050D), Color(0xFF080B20), Color(0xFF030914)]),
+        ),
+      )),
+      Positioned(top: -85, left: -75, child: AnimatedBuilder(animation: pulse, builder: (_, __) => Container(
+        width: 250 + pulse.value * 30, height: 250 + pulse.value * 30,
+        decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [const Color(0xFF087FC4).withOpacity(.30), const Color(0xFF087FC4).withOpacity(.02), Colors.transparent])),
+      ))),
+      Positioned(right: -100, top: 250, child: AnimatedBuilder(animation: pulse, builder: (_, __) => Container(
+        width: 280, height: 340,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(180), gradient: RadialGradient(colors: [const Color(0xFF263DFF).withOpacity(.16 + pulse.value * .08), Colors.transparent])),
+      ))),
+      SafeArea(child: Column(children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
-          child: Row(children: [
-            const Icon(Icons.blur_on_rounded, color: cyan, size: 30),
-            const SizedBox(width: 8),
-            const Text('M A V I S', style: TextStyle(color: cyan, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 17)),
-            const Spacer(),
-            IconButton(onPressed: _settings, icon: const Icon(Icons.settings_outlined, color: Colors.white70)),
-          ]),
+          padding: const EdgeInsets.fromLTRB(20, 8, 12, 8),
+          child: _glass(child: Row(children: [
+            Container(width: 38, height: 38, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFF36D9FF), Color(0xFF315BFF)]), boxShadow: [BoxShadow(color: cyan.withOpacity(.25), blurRadius: 16)]), child: const Icon(Icons.blur_on_rounded, color: Color(0xFF03101D), size: 25)),
+            const SizedBox(width: 11),
+            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('M A V I S', style: TextStyle(color: cyan, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 16)),
+              SizedBox(height: 2),
+              Text('PERSONAL INTELLIGENCE', style: TextStyle(color: Color(0xFF90AFCB), fontSize: 8, letterSpacing: 1.7)),
+            ])),
+            Container(width: 7, height: 7, decoration: BoxDecoration(color: const Color(0xFF6DFFC6), shape: BoxShape.circle, boxShadow: [BoxShadow(color: const Color(0xFF6DFFC6).withOpacity(.65), blurRadius: 9)])),
+            IconButton(onPressed: _settings, icon: const Icon(Icons.tune_rounded, color: Colors.white70)),
+          ])),
         ),
         Expanded(child: _buildPage()),
         _bottomDock(),
       ])),
-    ),
+    ]),
     floatingActionButton: FloatingActionButton(
       heroTag: 'jarvisFloatingAI',
       backgroundColor: const Color(0xFF19C76A),
@@ -563,14 +582,14 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
       Text(DateTime.now().toLocal().toString().substring(0, 10), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, fontSize: 13)),
       const SizedBox(height: 22),
       Center(child: AnimatedBuilder(animation: pulse, builder: (_, __) => Container(
-        width: 126 + pulse.value * 8, height: 126 + pulse.value * 8,
-        decoration: BoxDecoration(shape: BoxShape.circle, gradient: const RadialGradient(colors: [Color(0xFF1A7CA5), Color(0xFF07162B)]), border: Border.all(color: cyan.withOpacity(.75)), boxShadow: [BoxShadow(color: cyan.withOpacity(.15 + pulse.value*.2), blurRadius: 32, spreadRadius: 3)]),
-        child: const Icon(Icons.auto_awesome, color: Color(0xFFCEFAFF), size: 52),
+        width: 146 + pulse.value * 10, height: 146 + pulse.value * 10,
+        decoration: BoxDecoration(shape: BoxShape.circle, gradient: const RadialGradient(center: Alignment(-.35, -.4), radius: .9, colors: [Color(0xFF62F2FF), Color(0xFF137DC6), Color(0xFF101B57), Color(0xFF050B18)]), border: Border.all(color: cyan.withOpacity(.75), width: 1.3), boxShadow: [BoxShadow(color: cyan.withOpacity(.18 + pulse.value*.2), blurRadius: 38, spreadRadius: 5), BoxShadow(color: const Color(0xFF315BFF).withOpacity(.18), blurRadius: 60, spreadRadius: 8)]),
+        child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFE7FDFF), size: 56),
       ))),
       const SizedBox(height: 16),
-      const Center(child: Text('AT YOUR SERVICE', style: TextStyle(color: cyan, letterSpacing: 3, fontSize: 11))),
+      const Center(child: Text('YOUR AI. YOUR WORLD.', style: TextStyle(color: cyan, letterSpacing: 3.2, fontSize: 10, fontWeight: FontWeight.w700))),
       const SizedBox(height: 6),
-      const Center(child: Text('Your personal AI assistant', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+      const Center(child: Text('Intelligence, in motion.', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w700, letterSpacing: -.5))),
       const SizedBox(height: 8),
       Center(child: Text('● $status', style: TextStyle(color: backendOK ? const Color(0xFF8FFFD1) : Colors.orangeAccent, fontSize: 12))),
       const SizedBox(height: 20),
@@ -658,8 +677,13 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
             margin: const EdgeInsets.symmetric(vertical: 5),
             padding: const EdgeInsets.all(13),
             constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .84),
-            decoration: BoxDecoration(color: m.role == 'user' ? const Color(0xFF103858) : const Color(0xFF0A1B30), border: Border.all(color: cyan.withOpacity(.18)), borderRadius: BorderRadius.circular(16)),
-            child: Text(m.text),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: m.role == 'user' ? const [Color(0xCC105A85), Color(0xCC10254C)] : const [Color(0xCC12243A), Color(0xCC070F1D)]),
+              border: Border.all(color: m.role == 'user' ? cyan.withOpacity(.42) : Colors.white.withOpacity(.10)),
+              borderRadius: BorderRadius.only(topLeft: const Radius.circular(19), topRight: const Radius.circular(19), bottomLeft: Radius.circular(m.role == 'user' ? 19 : 5), bottomRight: Radius.circular(m.role == 'user' ? 5 : 19)),
+              boxShadow: [BoxShadow(color: (m.role == 'user' ? cyan : const Color(0xFF315BFF)).withOpacity(.07), blurRadius: 18, spreadRadius: 1)],
+            ),
+            child: Text(m.text, style: const TextStyle(height: 1.42, fontSize: 14.5)),
           ),
         )),
       ],
@@ -712,13 +736,22 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
 
   Widget _glass({required Widget child}) => Container(
     padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xCC163451), Color(0xBB071426)]), border: Border.all(color: cyan.withOpacity(.23)), borderRadius: BorderRadius.circular(20), boxShadow: const [BoxShadow(color: Color(0x2200AFFF), blurRadius: 22)]),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xD91B3956), Color(0xB809172B), Color(0xC9050B18)]),
+      border: Border.all(color: cyan.withOpacity(.25), width: 1),
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [BoxShadow(color: const Color(0xFF009DFF).withOpacity(.08), blurRadius: 28, spreadRadius: 1)],
+    ),
     child: child,
   );
 
   Widget _bottomDock() => Container(
     padding: const EdgeInsets.fromLTRB(12, 8, 12, 7),
-    decoration: BoxDecoration(color: const Color(0xEE061120), border: Border(top: BorderSide(color: cyan.withOpacity(.2)))),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xE9101F35), Color(0xF5030813)]),
+      border: Border(top: BorderSide(color: cyan.withOpacity(.22))),
+      boxShadow: [BoxShadow(color: const Color(0xFF008CFF).withOpacity(.08), blurRadius: 24, offset: const Offset(0, -5))],
+    ),
     child: Row(children: [
       _nav(Icons.home_rounded, 'Home'),
       _nav(Icons.apps_rounded, 'Apps'),
