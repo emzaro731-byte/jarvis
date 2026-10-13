@@ -9,6 +9,7 @@ on:
       - 'pubspec.lock'
       - 'android/AndroidManifest.xml'
       - 'android/app/src/main/kotlin/**'
+      - 'assets/jarvis_launcher_icon.png'
       - '.github/workflows/android.yml'
 permissions:
   contents: read
@@ -30,6 +31,25 @@ jobs:
           cp android/AndroidManifest.xml /tmp/jarvis_flutter/android/app/src/main/AndroidManifest.xml
           mkdir -p /tmp/jarvis_flutter/android/app/src/main/kotlin/com/emzaro/jarvis
           cp android/app/src/main/kotlin/com/emzaro/jarvis/MainActivity.kt /tmp/jarvis_flutter/android/app/src/main/kotlin/com/emzaro/jarvis/MainActivity.kt
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          import shutil
+          source = Image.open('assets/jarvis_launcher_icon.png').convert('RGBA')
+          res = Path('/tmp/jarvis_flutter/android/app/src/main/res')
+          sizes = {'mipmap-mdpi':48, 'mipmap-hdpi':72, 'mipmap-xhdpi':96, 'mipmap-xxhdpi':144, 'mipmap-xxxhdpi':192}
+          for folder, size in sizes.items():
+              dest = res / folder
+              dest.mkdir(parents=True, exist_ok=True)
+              icon = source.resize((size, size), Image.Resampling.LANCZOS)
+              icon.save(dest / 'ic_launcher.png', optimize=True)
+              icon.save(dest / 'ic_launcher_round.png', optimize=True)
+          # Use the supplied artwork as the icon on all Android versions.
+          for adaptive in (res / 'mipmap-anydpi-v26' / 'ic_launcher.xml', res / 'mipmap-anydpi-v26' / 'ic_launcher_round.xml'):
+              if adaptive.exists(): adaptive.unlink()
+          print('Installed supplied JARVIS icon into Android launcher resources.')
+          PY
           cd /tmp/jarvis_flutter
           flutter pub get
       - name: Install stable Android NDK
