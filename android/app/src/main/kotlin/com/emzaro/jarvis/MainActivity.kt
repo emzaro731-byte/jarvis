@@ -2,7 +2,6 @@ package com.emzaro.jarvis
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -47,8 +46,7 @@ class MainActivity : FlutterActivity() {
                             result.error("OVERLAY_PERMISSION_REQUIRED", "Allow display over other apps first.", null)
                         } else {
                             val serviceIntent = Intent(this, JarvisOverlayService::class.java).setAction(JarvisOverlayService.ACTION_START)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
-                            else startService(serviceIntent)
+                            startService(serviceIntent)
                             result.success(true)
                         }
                     }
