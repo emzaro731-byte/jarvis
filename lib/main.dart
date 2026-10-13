@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -472,7 +471,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
 
   Widget _bottomDock() => Container(
     padding: const EdgeInsets.fromLTRB(12, 8, 12, 7),
-    decoration: BoxDecoration(color: const Color(0xEE061120), border: Border(top: BorderSide(color: cyan.withOpacity(.2))),
+    decoration: BoxDecoration(color: const Color(0xEE061120), border: Border(top: BorderSide(color: cyan.withOpacity(.2)))),
     child: Row(children: [
       _nav(Icons.home_rounded, 'Home'),
       _nav(Icons.apps_rounded, 'Apps'),
