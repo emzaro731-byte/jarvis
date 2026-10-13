@@ -29,6 +29,15 @@ class MainActivity : FlutterActivity() {
         launcherChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
         launcherChannel?.setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "scanScreen" -> {
+                        val reader = MavisScreenReaderService.instance
+                        if (reader == null) {
+                            try {
+                                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                result.success(mapOf("needsPermission" to true, "text" to ""))
+                            } catch (e: Exception) { result.error("SCREEN_READER_SETTINGS_FAILED", e.message, null) }
+                        } else result.success(mapOf("needsPermission" to false, "text" to reader.scanNow()))
+                    }
                     "hasOverlayPermission" -> result.success(Settings.canDrawOverlays(this))
                     "requestOverlayPermission" -> {
                         if (Settings.canDrawOverlays(this)) result.success(true)
