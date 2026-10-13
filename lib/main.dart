@@ -78,6 +78,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
   Timer? screenReadTimer;
   Timer? voiceRestartTimer;
   String lastScreenText = '';
+  DateTime? lastTradeAnalysisAt;
   Timer? clockTimer;
   late final AnimationController pulse = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
 
@@ -260,7 +261,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
       _snack('Continuous screen reading is ON. Say “stop” to stop. Keep the microphone permission enabled.');
       await tts.speak(firstText.length > 1800 ? firstText.substring(0, 1800) : firstText);
       screenReadTimer?.cancel();
-      screenReadTimer = Timer.periodic(const Duration(seconds: 4), (_) => _readChangedScreen());
+      screenReadTimer = Timer.periodic(const Duration(seconds: 1), (_) => _readChangedScreen());
       _ensureStopCommandListening();
     } on PlatformException catch (e) {
       _snack('Screen scan failed: ${e.message ?? e.code}');
@@ -275,8 +276,22 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
       final text = await _getScreenText();
       if (!continuousScreenReading || text.isEmpty || text == lastScreenText) return;
       lastScreenText = text;
-      await tts.stop();
-      await tts.speak(text.length > 1800 ? text.substring(0, 1800) : text);
+      final tradingWords = RegExp(r'\\b(buy|sell|long|short|take profit|stop loss|entry|exit|candlestick|trading|forex|crypto|BTC|ETH|USDT|price|profit|loss|order book|RSI|MACD)\\b', caseSensitive: false);
+      final looksLikeTrade = tradingWords.hasMatch(text);
+      if (looksLikeTrade) {
+        final now = DateTime.now();
+        if (lastTradeAnalysisAt != null && now.difference(lastTradeAnalysisAt!) < const Duration(seconds: 15)) {
+          await tts.stop();
+          await tts.speak('Trading screen changed. I will refresh the trade analysis shortly.');
+          return;
+        }
+        lastTradeAnalysisAt = now;
+        await tts.stop();
+        await _send('Analyze the visible trading screen text below. Give a cautious educational trade assessment: BUY, SELL, or WAIT; what evidence supports it; a possible entry zone only if the screen provides enough information; a stop-loss idea and take-profit levels only if prices and timeframe are visible; and what would invalidate the setup. If the visible text is insufficient to determine direction, explicitly say WAIT / NOT ENOUGH DATA. Never invent current prices, chart patterns, or guaranteed profit. This is not a guarantee and I must confirm the chart and risk before placing any trade. Visible screen text:\\n\\n$text');
+      } else {
+        await tts.stop();
+        await tts.speak(text.length > 1800 ? text.substring(0, 1800) : text);
+      }
     } catch (_) {}
   }
 
