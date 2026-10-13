@@ -39,6 +39,7 @@ class JarvisOverlayService : Service() {
         return START_STICKY
     }
 
+    @Suppress("DEPRECATION")
     private fun showBubble() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val view = TextView(this).apply {
@@ -57,7 +58,7 @@ class JarvisOverlayService : Service() {
         }
         val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+        else WindowManager.LayoutParams.TYPE_PHONE
         val lp = WindowManager.LayoutParams(
             dp(58), dp(58), overlayType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
