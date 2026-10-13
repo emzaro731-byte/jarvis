@@ -37,7 +37,27 @@ jobs:
           from PIL import Image
           from pathlib import Path
           import shutil
-          source = Image.open('assets/jarvis_launcher_icon.png').convert('RGBA')
+          source_path = Path('assets/jarvis_launcher_icon.png')
+          try:
+              source = Image.open(source_path).convert('RGBA')
+              source.load()
+              print(f'Loaded supplied JARVIS icon: {source_path}')
+          except Exception as exc:
+              # Do not fail the APK build if the repository asset is missing or corrupt.
+              # Draw a clean fallback icon locally instead of downloading or generating one.
+              print(f'WARNING: supplied icon is unreadable ({exc}); creating a fallback icon.')
+              source = Image.new('RGBA', (512, 512), (4, 15, 30, 255))
+              from PIL import ImageDraw, ImageFont
+              draw = ImageDraw.Draw(source)
+              draw.ellipse((40, 40, 472, 472), fill=(25, 199, 106, 255), outline=(116, 255, 198, 255), width=14)
+              try:
+                  font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 300)
+              except Exception:
+                  font = ImageFont.load_default()
+              box = draw.textbbox((0, 0), 'J', font=font, stroke_width=0)
+              x = (512 - (box[2] - box[0])) // 2 - box[0]
+              y = (512 - (box[3] - box[1])) // 2 - box[1] - 10
+              draw.text((x, y), 'J', font=font, fill=(4, 19, 10, 255))
           res = Path('/tmp/jarvis_flutter/android/app/src/main/res')
           sizes = {'mipmap-mdpi':48, 'mipmap-hdpi':72, 'mipmap-xhdpi':96, 'mipmap-xxhdpi':144, 'mipmap-xxxhdpi':192}
           for folder, size in sizes.items():
