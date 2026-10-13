@@ -1,6 +1,9 @@
 package com.emzaro.jarvis
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
@@ -12,12 +15,52 @@ import java.io.ByteArrayOutputStream
 
 class MainActivity : FlutterActivity() {
     private val channelName = "com.emzaro.jarvis/launcher"
+    private var launcherChannel: MethodChannel? = null
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("open_ai", false)) {
+            launcherChannel?.invokeMethod("openAiFromOverlay", null)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
-            .setMethodCallHandler { call, result ->
+        launcherChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+        launcherChannel?.setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "hasOverlayPermission" -> result.success(Settings.canDrawOverlays(this))
+                    "requestOverlayPermission" -> {
+                        if (Settings.canDrawOverlays(this)) result.success(true)
+                        else {
+                            try {
+                                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+                                result.success(false)
+                            } catch (e: Exception) {
+                                result.error("OVERLAY_SETTINGS_FAILED", e.message, null)
+                            }
+                        }
+                    }
+                    "startOverlay" -> {
+                        if (!Settings.canDrawOverlays(this)) {
+                            result.error("OVERLAY_PERMISSION_REQUIRED", "Allow display over other apps first.", null)
+                        } else {
+                            val serviceIntent = Intent(this, JarvisOverlayService::class.java).setAction(JarvisOverlayService.ACTION_START)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
+                            else startService(serviceIntent)
+                            result.success(true)
+                        }
+                    }
+                    "stopOverlay" -> {
+                        stopService(Intent(this, JarvisOverlayService::class.java).setAction(JarvisOverlayService.ACTION_STOP))
+                        result.success(true)
+                    }
+                    "consumeOpenAiIntent" -> {
+                        val shouldOpen = intent?.getBooleanExtra("open_ai", false) == true
+                        intent?.removeExtra("open_ai")
+                        result.success(shouldOpen)
+                    }
                     "getApps" -> {
                         try {
                             val intent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
