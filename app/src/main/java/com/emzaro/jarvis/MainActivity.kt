@@ -29,13 +29,18 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
   }
   @JavascriptInterface fun openApp(pkg:String) { runOnUiThread { try { val i=packageManager.getLaunchIntentForPackage(pkg); if(i!=null) startActivity(i) else Toast.makeText(this@MainActivity,"App unavailable",0).show() } catch(_:Exception){} } }
   @JavascriptInterface fun voiceInput() { runOnUiThread { try { val i=Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH); i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); i.putExtra(RecognizerIntent.EXTRA_PROMPT,"Speak to JARVIS"); startActivityForResult(i,771) } catch(_:Exception){ Toast.makeText(this@MainActivity,"Voice input unavailable",0).show() } } }
+  @JavascriptInterface fun pickContact() { runOnUiThread { try { startActivityForResult(Intent(Intent.ACTION_PICK,android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI),772) } catch(_:Exception) { Toast.makeText(this@MainActivity,"Contacts picker unavailable",Toast.LENGTH_SHORT).show() } } }
+  @JavascriptInterface fun dialNumber(number:String) { runOnUiThread { try { val clean=number.filter { it.isDigit() || it=='+' || it=='*' || it=='#' }; if(clean.isNotBlank()) startActivity(Intent(Intent.ACTION_DIAL,android.net.Uri.parse("tel:"+android.net.Uri.encode(clean)))) } catch(_:Exception) { Toast.makeText(this@MainActivity,"Unable to open phone dialer",Toast.LENGTH_SHORT).show() } } }
   @JavascriptInterface fun openSettings() { runOnUiThread { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) } }
   @JavascriptInterface fun startScreenScan(): Boolean { val svc=ScreenReaderService.instance; if(svc==null){runOnUiThread{startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))};return false}; svc.startPolling(); return true }
   @JavascriptInterface fun stopScreenScan(){ScreenReaderService.instance?.stopPolling()}
   @JavascriptInterface fun screenScanText():String=ScreenReaderService.latestText
   @JavascriptInterface fun batteryPercent():Int { val b=registerReceiver(null,android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED)); val l=b?.getIntExtra("level",-1)?:-1; val s=b?.getIntExtra("scale",100)?:100; return if(l>=0&&s>0) l*100/s else -1 }
  }
- override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) { super.onActivityResult(requestCode,resultCode,data); if(requestCode==771&&resultCode==RESULT_OK){ val t=data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?:return; web.evaluateJavascript("window.onJarvisVoice("+JSONObject.quote(t)+")",null) } }
+ override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) { super.onActivityResult(requestCode,resultCode,data)
+  if(requestCode==771&&resultCode==RESULT_OK){ val t=data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?:return; web.evaluateJavascript("window.onJarvisVoice("+JSONObject.quote(t)+")",null) }
+  if(requestCode==772&&resultCode==RESULT_OK&&data?.data!=null){ try { contentResolver.query(data.data!!,arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER),null,null,null)?.use { c -> if(c.moveToFirst()){ web.evaluateJavascript("window.onJarvisContact("+JSONObject.quote(c.getString(0)?: "Contact")+","+JSONObject.quote(c.getString(1)?: "")+")",null) } } } catch(_:Exception){ Toast.makeText(this,"Could not read selected contact",Toast.LENGTH_SHORT).show() } }
+ }
  override fun onInit(status:Int) { if(status==TextToSpeech.SUCCESS) tts?.language=Locale.getDefault() }
  override fun onDestroy(){ tts?.shutdown(); web.destroy(); super.onDestroy() }
 }
