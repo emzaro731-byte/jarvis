@@ -51,6 +51,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
   @JavascriptInterface fun openSettings() { runOnUiThread { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) } }
   @JavascriptInterface fun startScreenScan(): Boolean { val svc=ScreenReaderService.instance; if(svc==null){runOnUiThread{startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))};return false}; svc.startPolling(); return true }
   @JavascriptInterface fun stopScreenScan(){ScreenReaderService.instance?.stopPolling()}
+  @JavascriptInterface fun screenScanActive():Boolean=ScreenReaderService.instance?.isPolling()?:false
   @JavascriptInterface fun screenScanText():String=ScreenReaderService.latestText
   @JavascriptInterface fun batteryPercent():Int { val b=registerReceiver(null,android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED)); val l=b?.getIntExtra("level",-1)?:-1; val s=b?.getIntExtra("scale",100)?:100; return if(l>=0&&s>0) l*100/s else -1 }
  }
