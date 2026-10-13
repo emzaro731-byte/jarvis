@@ -15,6 +15,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
  private var tts: TextToSpeech? = null
  override fun onCreate(savedInstanceState: Bundle?) {
   super.onCreate(savedInstanceState); tts=TextToSpeech(this,this)
+  if(android.os.Build.VERSION.SDK_INT>=33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),773)
+  if(android.os.Build.VERSION.SDK_INT>=26){val ch=android.app.NotificationChannel("jarvis_reminders","JARVIS reminders",android.app.NotificationManager.IMPORTANCE_DEFAULT); getSystemService(android.app.NotificationManager::class.java).createNotificationChannel(ch)}
   web=WebView(this); web.settings.javaScriptEnabled=true; web.settings.domStorageEnabled=true
   web.webChromeClient=WebChromeClient(); web.webViewClient=WebViewClient(); web.addJavascriptInterface(Bridge(),"JarvisAndroid")
   setContentView(web); web.loadUrl("file:///android_asset/index.html")
@@ -38,6 +40,14 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
    val url="https://wa.me/"+n+"?text="+java.net.URLEncoder.encode(message.take(2000),"UTF-8")
    startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)))
   } catch(_:Exception) { Toast.makeText(this@MainActivity,"WhatsApp is not available. Install or update it.",Toast.LENGTH_LONG).show() } } }
+  @JavascriptInterface fun scheduleReminder(title:String,details:String,whenMillis:Long):Boolean {
+   if(whenMillis<=System.currentTimeMillis()) return false
+   return try { val i=Intent(this@MainActivity,ReminderReceiver::class.java).putExtra("title",title.take(100)).putExtra("details",details.take(500)).putExtra("id",(whenMillis%Int.MAX_VALUE).toInt())
+    val pi=android.app.PendingIntent.getBroadcast(this@MainActivity,(whenMillis%Int.MAX_VALUE).toInt(),i,android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+    val am=getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+    am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP,whenMillis,pi); true
+   } catch(_:Exception){ false }
+  }
   @JavascriptInterface fun openSettings() { runOnUiThread { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) } }
   @JavascriptInterface fun startScreenScan(): Boolean { val svc=ScreenReaderService.instance; if(svc==null){runOnUiThread{startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))};return false}; svc.startPolling(); return true }
   @JavascriptInterface fun stopScreenScan(){ScreenReaderService.instance?.stopPolling()}
