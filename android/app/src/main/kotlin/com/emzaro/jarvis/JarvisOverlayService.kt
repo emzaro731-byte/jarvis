@@ -31,7 +31,7 @@ class JarvisOverlayService : Service() {
             return START_NOT_STICKY
         }
         if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Allow JARVIS to display over other apps first.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Allow Mavis to display over other apps first.", Toast.LENGTH_LONG).show()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -43,7 +43,7 @@ class JarvisOverlayService : Service() {
     private fun showBubble() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val view = TextView(this).apply {
-            text = "J"
+            text = "M"
             textSize = 22f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
@@ -54,7 +54,7 @@ class JarvisOverlayService : Service() {
                 setStroke(dp(2), Color.WHITE)
             }
             elevation = dp(8).toFloat()
-            contentDescription = "Open JARVIS AI"
+            contentDescription = "Open Mavis AI assistant"
         }
         val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -108,7 +108,7 @@ class JarvisOverlayService : Service() {
             bubble = view
             params = lp
         } catch (_: Exception) {
-            Toast.makeText(this, "Could not display JARVIS floating button.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Could not display Mavis floating hub.", Toast.LENGTH_LONG).show()
             stopSelf()
         }
     }
