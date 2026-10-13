@@ -670,22 +670,59 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
       controller: scroll,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       children: [
-        if (lines.isEmpty) const Padding(padding: EdgeInsets.all(28), child: Column(children: [Icon(Icons.auto_awesome, size: 42, color: cyan), SizedBox(height: 12), Text('Hello, I'm Mavis. How can I help?', style: TextStyle(fontSize: 18))])),
-        ...lines.map((m) => Align(
-          alignment: m.role == 'user' ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 5),
-            padding: const EdgeInsets.all(13),
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .84),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: m.role == 'user' ? const [Color(0xCC105A85), Color(0xCC10254C)] : const [Color(0xCC12243A), Color(0xCC070F1D)]),
-              border: Border.all(color: m.role == 'user' ? cyan.withOpacity(.42) : Colors.white.withOpacity(.10)),
-              borderRadius: BorderRadius.only(topLeft: const Radius.circular(19), topRight: const Radius.circular(19), bottomLeft: Radius.circular(m.role == 'user' ? 19 : 5), bottomRight: Radius.circular(m.role == 'user' ? 5 : 19)),
-              boxShadow: [BoxShadow(color: (m.role == 'user' ? cyan : const Color(0xFF315BFF)).withOpacity(.07), blurRadius: 18, spreadRadius: 1)],
+        if (lines.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(28),
+            child: Column(
+              children: [
+                Icon(Icons.auto_awesome, size: 42, color: cyan),
+                SizedBox(height: 12),
+                Text("Hello, I'm Mavis. How can I help?", style: TextStyle(fontSize: 18)),
+              ],
             ),
-            child: Text(m.text, style: const TextStyle(height: 1.42, fontSize: 14.5)),
           ),
-        )),
+        ...lines.map<Widget>((m) {
+          final isUser = m.role == 'user';
+          final bubbleColor = isUser ? cyan : const Color(0xFF315BFF);
+          return Align(
+            alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 5),
+              padding: const EdgeInsets.all(13),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * .84,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isUser
+                      ? const [Color(0xCC105A85), Color(0xCC10254C)]
+                      : const [Color(0xCC12243A), Color(0xCC070F1D)],
+                ),
+                border: Border.all(
+                  color: isUser
+                      ? cyan.withOpacity(.42)
+                      : Colors.white.withOpacity(.10),
+                ),
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(19),
+                  topRight: const Radius.circular(19),
+                  bottomLeft: Radius.circular(isUser ? 19 : 5),
+                  bottomRight: Radius.circular(isUser ? 5 : 19),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: bubbleColor.withOpacity(.07),
+                    blurRadius: 18,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Text(m.text, style: const TextStyle(height: 1.42, fontSize: 14.5)),
+            ),
+          );
+        }),
       ],
     )),
     Padding(
