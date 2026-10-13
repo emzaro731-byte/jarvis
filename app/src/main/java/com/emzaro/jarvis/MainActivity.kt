@@ -30,6 +30,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
   @JavascriptInterface fun openApp(pkg:String) { runOnUiThread { try { val i=packageManager.getLaunchIntentForPackage(pkg); if(i!=null) startActivity(i) else Toast.makeText(this@MainActivity,"App unavailable",0).show() } catch(_:Exception){} } }
   @JavascriptInterface fun voiceInput() { runOnUiThread { try { val i=Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH); i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); i.putExtra(RecognizerIntent.EXTRA_PROMPT,"Speak to JARVIS"); startActivityForResult(i,771) } catch(_:Exception){ Toast.makeText(this@MainActivity,"Voice input unavailable",0).show() } } }
   @JavascriptInterface fun openSettings() { runOnUiThread { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) } }
+  @JavascriptInterface fun startScreenScan(): Boolean { val svc=ScreenReaderService.instance; if(svc==null){runOnUiThread{startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))};return false}; svc.startPolling(); return true }
+  @JavascriptInterface fun stopScreenScan(){ScreenReaderService.instance?.stopPolling()}
+  @JavascriptInterface fun screenScanText():String=ScreenReaderService.latestText
   @JavascriptInterface fun batteryPercent():Int { val b=registerReceiver(null,android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED)); val l=b?.getIntExtra("level",-1)?:-1; val s=b?.getIntExtra("scale",100)?:100; return if(l>=0&&s>0) l*100/s else -1 }
  }
  override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) { super.onActivityResult(requestCode,resultCode,data); if(requestCode==771&&resultCode==RESULT_OK){ val t=data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?:return; web.evaluateJavascript("window.onJarvisVoice("+JSONObject.quote(t)+")",null) } }
