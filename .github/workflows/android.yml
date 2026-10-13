@@ -25,7 +25,7 @@ jobs:
       - name: Install Flutter app source
         run: |
           cp pubspec.yaml /tmp/jarvis_flutter/pubspec.yaml
-          cp -r lib /tmp/jarvis_flutter/lib
+          cp -r lib/. /tmp/jarvis_flutter/lib/
           cp android/AndroidManifest.xml /tmp/jarvis_flutter/android/app/src/main/AndroidManifest.xml
           cd /tmp/jarvis_flutter
           flutter pub get
