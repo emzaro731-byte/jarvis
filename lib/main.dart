@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 const defaultBackend = 'https://jarvis-auhu.onrender.com';
 const cyan = Color(0xFF58E7FF);
@@ -38,7 +39,7 @@ class JarvisApp extends StatelessWidget {
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: cyan, width: 1.4)),
       ),
     ),
-    home: const JarvisHome(),
+    home: const WebsiteHome(),
   );
 }
 
@@ -811,4 +812,62 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
 
 extension TakeLast<T> on List<T> {
   Iterable<T> takeLast(int n) => skip(length > n ? length - n : 0);
+}
+
+
+/// Runs the same JARVIS OS interface that is used by the website, packaged
+/// locally inside the APK so it does not depend on a website hosting page.
+class WebsiteHome extends StatefulWidget {
+  const WebsiteHome({super.key});
+  @override
+  State<WebsiteHome> createState() => _WebsiteHomeState();
+}
+
+class _WebsiteHomeState extends State<WebsiteHome> {
+  late final WebViewController controller;
+  bool loading = true;
+  String? loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF030914))
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageStarted: (_) { if (mounted) setState(() { loading = true; loadError = null; }); },
+        onPageFinished: (_) { if (mounted) setState(() => loading = false); },
+        onWebResourceError: (error) {
+          if (error.isForMainFrame == true && mounted) {
+            setState(() { loading = false; loadError = error.description; });
+          }
+        },
+      ))
+      ..loadFlutterAsset('assets/index.html');
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF030914),
+    body: SafeArea(
+      child: Stack(children: [
+        WebViewWidget(controller: controller),
+        if (loading)
+          const Align(alignment: Alignment.topCenter, child: LinearProgressIndicator(minHeight: 2, color: cyan, backgroundColor: bg)),
+        if (loadError != null)
+          Center(child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.wifi_off_rounded, color: cyan, size: 42),
+              const SizedBox(height: 12),
+              const Text('JARVIS could not load its built-in interface', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(loadError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+              const SizedBox(height: 16),
+              FilledButton.icon(onPressed: () => controller.loadFlutterAsset('assets/index.html'), icon: const Icon(Icons.refresh), label: const Text('Retry')),
+            ]),
+          )),
+      ]),
+    ),
+  );
 }
