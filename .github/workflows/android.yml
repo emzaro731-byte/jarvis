@@ -8,6 +8,7 @@ on:
       - 'pubspec.yaml'
       - 'pubspec.lock'
       - 'android/AndroidManifest.xml'
+      - 'android/app/src/main/kotlin/**'
       - '.github/workflows/android.yml'
 permissions:
   contents: read
