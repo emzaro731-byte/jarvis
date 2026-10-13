@@ -21,7 +21,7 @@ class JarvisApp extends StatelessWidget {
   const JarvisApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'JARVIS AI Launcher',
+    title: 'JARVIS AI',
     debugShowCheckedModeBanner: false,
     theme: ThemeData.dark().copyWith(
       scaffoldBackgroundColor: bg,
