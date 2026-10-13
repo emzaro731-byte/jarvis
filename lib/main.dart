@@ -221,6 +221,28 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
     await p.setString('chat_history', jsonEncode(lines.map((e) => e.toJson()).toList()));
   }
 
+  Future<void> _scanAndReadScreen() async {
+    _snack('Mavis is scanning visible screen text…');
+    try {
+      final result = await launcherChannel.invokeMethod<Map<dynamic, dynamic>>('scanScreen');
+      if (result?['needsPermission'] == true) {
+        _snack('Enable Mavis Screen Reader in Android Accessibility settings, then return and say “scan and read my screen” again.');
+        return;
+      }
+      final screenText = result?['text']?.toString().trim() ?? '';
+      if (screenText.isEmpty) {
+        _snack('I could not read text on this screen. Make sure the screen is open and try again.');
+        return;
+      }
+      setState(() => page = 'AI');
+      await _send('Read and explain the text currently visible on my screen. Summarize the key information and explain any important buttons, alerts, or instructions. Screen text follows:\n\n$screenText');
+    } on PlatformException catch (e) {
+      _snack('Screen scan failed: ${e.message ?? e.code}');
+    } on MissingPluginException {
+      _snack('Install the latest Mavis APK to use screen scanning.');
+    }
+  }
+
   Future<void> _send([String? text]) async {
     final q = (text ?? input.text).trim();
     if (q.isEmpty || busy) return;
@@ -288,6 +310,18 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
           }
         } else {
           input.text = spoken;
+          final command = spoken.toLowerCase().replaceAll(RegExp(r'[^a-z0-9 ]'), '').trim();
+          final scanCommand = command.contains('scan and read my screen') ||
+              command.contains('read my screen') ||
+              command.contains('scan my screen') ||
+              command == 'scan screen' ||
+              command.contains('read the screen');
+          if (r.finalResult && scanCommand) {
+            setState(() => listening = false);
+            await speech.stop();
+            await _scanAndReadScreen();
+            return;
+          }
         }
         if (r.finalResult && mounted) setState(() => listening = false);
       },
