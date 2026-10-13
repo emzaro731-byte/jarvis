@@ -1,4 +1,5 @@
 name: Build JARVIS Flutter APK
+
 on:
   workflow_dispatch:
   push:
@@ -7,47 +8,85 @@ on:
       - 'lib/**'
       - 'pubspec.yaml'
       - 'pubspec.lock'
-      - 'android/AndroidManifest.xml'
-      - 'android/app/src/main/kotlin/**'
+      - 'android/**'
+      - 'app/src/main/assets/index.html'
       - 'assets/jarvis_launcher_icon.png'
       - '.github/workflows/android.yml'
+
 permissions:
   contents: read
+
+concurrency:
+  group: jarvis-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    name: Build and package JARVIS APK
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
+      - name: Verify required source files
+        run: |
+          set -eu
+          test -f pubspec.yaml
+          test -f lib/main.dart
+          test -f app/src/main/assets/index.html
+          test -f android/AndroidManifest.xml
+          echo "Flutter and website source files are present."
+          flutter --version
+          java -version
+
       - name: Generate Android Flutter project
         run: flutter create --platforms=android --org com.emzaro --project-name jarvis --overwrite /tmp/jarvis_flutter
-      - name: Install Flutter app source
+
+      - name: Copy app source and bundled website
         run: |
+          set -eu
           cp pubspec.yaml /tmp/jarvis_flutter/pubspec.yaml
           mkdir -p /tmp/jarvis_flutter/assets
           cp app/src/main/assets/index.html /tmp/jarvis_flutter/assets/index.html
           cp -r lib/. /tmp/jarvis_flutter/lib/
           cp android/AndroidManifest.xml /tmp/jarvis_flutter/android/app/src/main/AndroidManifest.xml
           mkdir -p /tmp/jarvis_flutter/android/app/src/main/kotlin/com/emzaro/jarvis
-          cp -r android/app/src/main/kotlin/com/emzaro/jarvis/. /tmp/jarvis_flutter/android/app/src/main/kotlin/com/emzaro/jarvis/
+          if [ -d android/app/src/main/kotlin/com/emzaro/jarvis ]; then
+            cp -r android/app/src/main/kotlin/com/emzaro/jarvis/. /tmp/jarvis_flutter/android/app/src/main/kotlin/com/emzaro/jarvis/
+          fi
           if [ -d android/app/src/main/res/xml ]; then
             mkdir -p /tmp/jarvis_flutter/android/app/src/main/res/xml
             cp -r android/app/src/main/res/xml/. /tmp/jarvis_flutter/android/app/src/main/res/xml/
           fi
           if [ -d android/app/src/main/res/values ]; then
+            mkdir -p /tmp/jarvis_flutter/android/app/src/main/res/values
             cp -r android/app/src/main/res/values/. /tmp/jarvis_flutter/android/app/src/main/res/values/
           fi
+
+      - name: Install exact repository launcher icon
+        run: |
           python3 -m pip install --break-system-packages --quiet pillow
           python3 - <<'PY'
-          from PIL import Image
           from pathlib import Path
+          from PIL import Image
           source_path = Path('assets/jarvis_launcher_icon.png')
-          # Use only the exact artwork committed to the repository. Never draw,
-          # synthesize, download, or substitute a launcher icon in CI.
           res = Path('/tmp/jarvis_flutter/android/app/src/main/res')
+          if not source_path.is_file():
+              print('No committed launcher icon found; keeping Flutter default.')
+              raise SystemExit(0)
           try:
               with Image.open(source_path) as image:
                   source = image.convert('RGBA')
@@ -60,35 +99,23 @@ jobs:
                   icon.save(dest / 'ic_launcher.png', optimize=True)
                   icon.save(dest / 'ic_launcher_round.png', optimize=True)
               for adaptive in (res / 'mipmap-anydpi-v26' / 'ic_launcher.xml', res / 'mipmap-anydpi-v26' / 'ic_launcher_round.xml'):
-                  if adaptive.exists(): adaptive.unlink()
-              print(f'Installed exact repository JARVIS artwork from {source_path}.')
+                  if adaptive.exists():
+                      adaptive.unlink()
+              print('Installed exact repository JARVIS launcher artwork.')
           except Exception as exc:
-              # Do not invent or replace the user's artwork. Keep Flutter's
-              # generated launcher icon and let the APK build continue.
-              print(f'WARNING: committed launcher artwork is not a readable image ({exc}); keeping the generated launcher icon. Repair assets/jarvis_launcher_icon.png to use the exact artwork.')
+              print(f'WARNING: could not install committed icon: {exc}')
           PY
-          cd /tmp/jarvis_flutter
-          flutter pub get
-      - name: Install stable Android NDK
-        run: |
-          set -e
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          for attempt in 1 2 3; do
-            if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358"; then
-              break
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "NDK installation failed after 3 attempts"
-              exit 1
-            fi
-            echo "NDK download failed; retrying in 10 seconds..."
-            sleep 10
-          done
-          sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "28.2.13676358"/' /tmp/jarvis_flutter/android/app/build.gradle.kts
-          grep -n 'ndkVersion' /tmp/jarvis_flutter/android/app/build.gradle.kts
-      - name: Build APK
-        run: cd /tmp/jarvis_flutter && flutter build apk --debug
-      - uses: actions/upload-artifact@v4
+
+      - name: Resolve Flutter dependencies
+        working-directory: /tmp/jarvis_flutter
+        run: flutter pub get
+
+      - name: Build debug APK
+        working-directory: /tmp/jarvis_flutter
+        run: flutter build apk --debug --verbose
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
           name: jarvis-flutter-debug-apk
           path: /tmp/jarvis_flutter/build/app/outputs/flutter-apk/app-debug.apk
