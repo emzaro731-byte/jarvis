@@ -276,18 +276,16 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
       final text = await _getScreenText();
       if (!continuousScreenReading || text.isEmpty || text == lastScreenText) return;
       lastScreenText = text;
-      final tradingWords = RegExp(r'\\b(buy|sell|long|short|take profit|stop loss|entry|exit|candlestick|trading|forex|crypto|BTC|ETH|USDT|price|profit|loss|order book|RSI|MACD)\\b', caseSensitive: false);
+      final tradingWords = RegExp(r'\b(buy|sell|long|short|take profit|stop loss|entry|exit|candlestick|trading|forex|crypto|BTC|ETH|USDT|price|profit|loss|order book|RSI|MACD|EURUSD|GBPUSD|XAUUSD|USDJPY|NAS100|US30)\b', caseSensitive: false);
       final looksLikeTrade = tradingWords.hasMatch(text);
       if (looksLikeTrade) {
         final now = DateTime.now();
-        if (lastTradeAnalysisAt != null && now.difference(lastTradeAnalysisAt!) < const Duration(seconds: 15)) {
-          await tts.stop();
-          await tts.speak('Trading screen changed. I will refresh the trade analysis shortly.');
-          return;
-        }
+        // Continue scanning every second, but avoid repeating AI calls for the same changing chart.
+        if (lastTradeAnalysisAt != null && now.difference(lastTradeAnalysisAt!) < const Duration(seconds: 12)) return;
+        if (busy) return;
         lastTradeAnalysisAt = now;
-        await tts.stop();
-        await _send('Analyze the visible trading screen text below. Give a cautious educational trade assessment: BUY, SELL, or WAIT; what evidence supports it; a possible entry zone only if the screen provides enough information; a stop-loss idea and take-profit levels only if prices and timeframe are visible; and what would invalidate the setup. If the visible text is insufficient to determine direction, explicitly say WAIT / NOT ENOUGH DATA. Never invent current prices, chart patterns, or guaranteed profit. This is not a guarantee and I must confirm the chart and risk before placing any trade. Visible screen text:\\n\\n$text');
+        setState(() => page = 'AI');
+        await _send('You are Mavis, a cautious trading-screen assistant. Analyze ONLY the visible screen text below. Start with one clear label: BUY SETUP, SELL SETUP, or WAIT. Then state: (1) whether the visible evidence supports entry now or whether to wait for confirmation; (2) entry price/zone only if a legible current price and timeframe are shown; (3) a stop-loss level/idea; (4) take-profit target 1 and target 2, with risk/reward if enough price data exists; (5) one invalidation condition; and (6) confidence: low/medium/high based on available evidence. If price, timeframe, chart direction, or indicators are missing/ambiguous, say WAIT — NOT ENOUGH DATA and do not invent levels. Do not promise profit or claim certainty. Accessibility text extraction may omit chart candles and indicators, so explain that limitation. This is educational decision support, not a guaranteed signal; I must verify the actual chart and risk before trading. Visible trading screen text:\n\n$text');
       } else {
         await tts.stop();
         await tts.speak(text.length > 1800 ? text.substring(0, 1800) : text);
