@@ -52,7 +52,7 @@ app.post("/api/chat", rateLimit, async (req, res) => {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+        model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
         messages: safeMessages,
         temperature: Math.max(0, Math.min(1, Number(temperature) || 0.5)),
         max_tokens: Math.max(1, Math.min(1000, Number(max_tokens) || 700))
