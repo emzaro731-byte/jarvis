@@ -208,10 +208,22 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
     setState(() => listening = true);
     await speech.listen(
       onResult: (r) {
+        final spoken = r.recognizedWords.trim();
         if (page == 'Apps') {
-          appSearch.text = r.recognizedWords;
+          appSearch.text = spoken;
+          final command = spoken.toLowerCase();
+          if (r.finalResult && (command.startsWith('open ') || command.startsWith('launch '))) {
+            final requested = command.replaceFirst(RegExp(r'^(open|launch)\\s+'), '').trim();
+            final match = apps.where((a) => a.label.toLowerCase().contains(requested)).firstOrNull;
+            if (match != null) {
+              setState(() => listening = false);
+              speech.stop();
+              _launchApp(match);
+              return;
+            }
+          }
         } else {
-          input.text = r.recognizedWords;
+          input.text = spoken;
         }
         if (r.finalResult && mounted) setState(() => listening = false);
       },
