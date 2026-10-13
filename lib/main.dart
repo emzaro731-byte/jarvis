@@ -21,7 +21,7 @@ class JarvisApp extends StatelessWidget {
   const JarvisApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'JARVIS AI',
+    title: 'Mavis AI',
     debugShowCheckedModeBanner: false,
     theme: ThemeData.dark().copyWith(
       scaffoldBackgroundColor: bg,
@@ -62,7 +62,7 @@ class JarvisHome extends StatefulWidget {
   State<JarvisHome> createState() => _JarvisHomeState();
 }
 
-class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
+class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, WidgetsBindingObserver {
   final input = TextEditingController();
   final appSearch = TextEditingController();
   final scroll = ScrollController();
@@ -81,6 +81,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _updateClock();
     clockTimer = Timer.periodic(const Duration(seconds: 1), (_) => _updateClock());
     appSearch.addListener(() { if (mounted) setState(() {}); });
@@ -93,6 +94,31 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
     _init();
     _loadApps();
     _consumeOverlayLaunch();
+    _autoStartMavisHub();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _autoStartMavisHub();
+  }
+
+  Future<void> _autoStartMavisHub() async {
+    try {
+      final allowed = await launcherChannel.invokeMethod<bool>('hasOverlayPermission') ?? false;
+      if (!allowed) {
+        final prefs = await SharedPreferences.getInstance();
+        final prompted = prefs.getBool('mavis_overlay_permission_prompted') ?? false;
+        if (!prompted) {
+          await prefs.setBool('mavis_overlay_permission_prompted', true);
+          await launcherChannel.invokeMethod<bool>('requestOverlayPermission');
+        }
+        return;
+      }
+      await launcherChannel.invokeMethod<bool>('startOverlay');
+      if (mounted && !overlayEnabled) setState(() => overlayEnabled = true);
+    } catch (_) {
+      // Keep the app usable if the user denies overlay permission or the OS blocks it.
+    }
   }
 
   void _updateClock() {
@@ -131,17 +157,17 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
       final allowed = await launcherChannel.invokeMethod<bool>('hasOverlayPermission') ?? false;
       if (!allowed) {
         await launcherChannel.invokeMethod<bool>('requestOverlayPermission');
-        _snack('Allow Display over other apps for JARVIS, return here, then tap Enable again.');
+        _snack('Allow Display over other apps for Mavis. Return to the app and the floating hub will start automatically.');
         return;
       }
       if (overlayEnabled) {
         await launcherChannel.invokeMethod<bool>('stopOverlay');
         if (mounted) setState(() => overlayEnabled = false);
-        _snack('Floating JARVIS button stopped.');
+        _snack('Mavis floating hub stopped.');
       } else {
         await launcherChannel.invokeMethod<bool>('startOverlay');
         if (mounted) setState(() => overlayEnabled = true);
-        _snack('Floating JARVIS button is active over other apps.');
+        _snack('Mavis floating hub is active over other apps.');
       }
     } on PlatformException catch (e) {
       _snack('Overlay error: ${e.message ?? e.code}');
@@ -207,7 +233,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
         Uri.parse('${backend.replaceAll(RegExp(r'/+$'), '')}/api/chat'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'messages': [
-          {'role':'system','content':'You are JARVIS, a concise, helpful personal AI assistant for Android. Give clear steps. Be honest about capabilities. Never claim to perform actions you did not perform.'},
+          {'role':'system','content':'You are Mavis, the user's default personal AI assistant on Android. Be warm, concise, helpful, and action-oriented. Give clear steps. Be honest about capabilities. Never claim to perform actions you did not perform. Give clear steps. Be honest about capabilities. Never claim to perform actions you did not perform.'},
           ...history.takeLast(14).map((x) => x.toJson()),
         ], 'temperature':0.65, 'max_tokens':850}),
       ).timeout(const Duration(seconds: 60));
@@ -284,7 +310,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
       builder: (ctx) => StatefulBuilder(builder: (ctx, update) => Padding(
         padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('JARVIS SETTINGS', style: TextStyle(color: cyan, fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('MAVIS SETTINGS', style: TextStyle(color: cyan, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           const Text('Secure AI backend URL'),
           const SizedBox(height: 8),
@@ -296,10 +322,10 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
           SizedBox(width: double.infinity, child: FilledButton.icon(
             onPressed: () async { await _toggleOverlay(); if (ctx.mounted) update(() {}); },
             icon: Icon(overlayEnabled ? Icons.stop_circle_outlined : Icons.open_in_new_rounded),
-            label: Text(overlayEnabled ? 'Stop floating JARVIS button' : 'Enable floating JARVIS button'),
+            label: Text(overlayEnabled ? 'Stop Mavis floating hub' : 'Enable Mavis floating hub'),
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFF19C76A), foregroundColor: const Color(0xFF04130A)),
           )),
-          const Padding(padding: EdgeInsets.only(top: 6, bottom: 8), child: Text('The green J button stays above other apps. Android will ask you to allow Display over other apps the first time.', style: TextStyle(color: Colors.white60, fontSize: 12))),
+          const Padding(padding: EdgeInsets.only(top: 6, bottom: 8), child: Text('The green Mavis hub stays above other apps. Allow Display over other apps once; it will start automatically when you open Mavis.', style: TextStyle(color: Colors.white60, fontSize: 12))),
           Row(children: [
             Expanded(child: FilledButton(onPressed: () async {
               final u = controller.text.trim().replaceAll(RegExp(r'/+$'), '');
@@ -327,6 +353,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     input.dispose();
     appSearch.dispose();
     scroll.dispose();
@@ -349,7 +376,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
           child: Row(children: [
             const Icon(Icons.blur_on_rounded, color: cyan, size: 30),
             const SizedBox(width: 8),
-            const Text('J A R V I S', style: TextStyle(color: cyan, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 17)),
+            const Text('M A V I S', style: TextStyle(color: cyan, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 17)),
             const Spacer(),
             IconButton(onPressed: _settings, icon: const Icon(Icons.settings_outlined, color: Colors.white70)),
           ]),
@@ -362,7 +389,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
       heroTag: 'jarvisFloatingAI',
       backgroundColor: const Color(0xFF19C76A),
       foregroundColor: const Color(0xFF04130A),
-      tooltip: 'Activate JARVIS AI',
+      tooltip: 'Activate Mavis AI',
       onPressed: () {
         setState(() => page = 'AI');
         _jumpBottom();
@@ -392,12 +419,12 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
       const SizedBox(height: 16),
       const Center(child: Text('AT YOUR SERVICE', style: TextStyle(color: cyan, letterSpacing: 3, fontSize: 11))),
       const SizedBox(height: 6),
-      const Center(child: Text('Your personal AI system', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+      const Center(child: Text('Your personal AI assistant', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
       const SizedBox(height: 8),
       Center(child: Text('● $status', style: TextStyle(color: backendOK ? const Color(0xFF8FFFD1) : Colors.orangeAccent, fontSize: 12))),
       const SizedBox(height: 20),
       _glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('ASK JARVIS', style: TextStyle(color: cyan, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        const Text('ASK MAVIS', style: TextStyle(color: cyan, fontWeight: FontWeight.bold, letterSpacing: 1)),
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: TextField(controller: input, minLines: 1, maxLines: 2, onSubmitted: (_) { setState(() => page = 'AI'); _send(); }, decoration: const InputDecoration(hintText: 'Ask anything…', contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 13)))),
@@ -473,7 +500,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
       controller: scroll,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       children: [
-        if (lines.isEmpty) const Padding(padding: EdgeInsets.all(28), child: Column(children: [Icon(Icons.auto_awesome, size: 42, color: cyan), SizedBox(height: 12), Text('Hello. How can I help?', style: TextStyle(fontSize: 18))])),
+        if (lines.isEmpty) const Padding(padding: EdgeInsets.all(28), child: Column(children: [Icon(Icons.auto_awesome, size: 42, color: cyan), SizedBox(height: 12), Text('Hello, I'm Mavis. How can I help?', style: TextStyle(fontSize: 18))])),
         ...lines.map((m) => Align(
           alignment: m.role == 'user' ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
@@ -489,7 +516,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
     Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Row(children: [
-        Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, onSubmitted: (_) => _send(), decoration: const InputDecoration(hintText: 'Message JARVIS…', contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12)))),
+        Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, onSubmitted: (_) => _send(), decoration: const InputDecoration(hintText: 'Message Mavis…', contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12)))),
         IconButton(onPressed: _voice, icon: Icon(listening ? Icons.mic : Icons.mic_none, color: cyan)),
         IconButton.filled(onPressed: busy ? null : () => _send(), icon: const Icon(Icons.send_rounded)),
       ]),
