@@ -32,6 +32,23 @@ jobs:
           cp android/app/src/main/kotlin/com/emzaro/jarvis/MainActivity.kt /tmp/jarvis_flutter/android/app/src/main/kotlin/com/emzaro/jarvis/MainActivity.kt
           cd /tmp/jarvis_flutter
           flutter pub get
+      - name: Install stable Android NDK
+        run: |
+          set -e
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          for attempt in 1 2 3; do
+            if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "NDK installation failed after 3 attempts"
+              exit 1
+            fi
+            echo "NDK download failed; retrying in 10 seconds..."
+            sleep 10
+          done
+          sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "27.0.12077973"/' /tmp/jarvis_flutter/android/app/build.gradle.kts
+          grep -n 'ndkVersion' /tmp/jarvis_flutter/android/app/build.gradle.kts
       - name: Build APK
         run: cd /tmp/jarvis_flutter && flutter build apk --debug
       - uses: actions/upload-artifact@v4
