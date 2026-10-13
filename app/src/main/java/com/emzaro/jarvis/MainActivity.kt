@@ -31,6 +31,13 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
   @JavascriptInterface fun voiceInput() { runOnUiThread { try { val i=Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH); i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); i.putExtra(RecognizerIntent.EXTRA_PROMPT,"Speak to JARVIS"); startActivityForResult(i,771) } catch(_:Exception){ Toast.makeText(this@MainActivity,"Voice input unavailable",0).show() } } }
   @JavascriptInterface fun pickContact() { runOnUiThread { try { startActivityForResult(Intent(Intent.ACTION_PICK,android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI),772) } catch(_:Exception) { Toast.makeText(this@MainActivity,"Contacts picker unavailable",Toast.LENGTH_SHORT).show() } } }
   @JavascriptInterface fun dialNumber(number:String) { runOnUiThread { try { val clean=number.filter { it.isDigit() || it=='+' || it=='*' || it=='#' }; if(clean.isNotBlank()) startActivity(Intent(Intent.ACTION_DIAL,android.net.Uri.parse("tel:"+android.net.Uri.encode(clean)))) } catch(_:Exception) { Toast.makeText(this@MainActivity,"Unable to open phone dialer",Toast.LENGTH_SHORT).show() } } }
+  @JavascriptInterface fun openWhatsAppChat(number:String,message:String) { runOnUiThread { try {
+   var n=number.filter { it.isDigit() || it=='+' }.replace("+","")
+   if(n.startsWith("0")) n="234"+n.drop(1)
+   if(n.isBlank()) { Toast.makeText(this@MainActivity,"Contact has no valid phone number",Toast.LENGTH_SHORT).show(); return@runOnUiThread }
+   val url="https://wa.me/"+n+"?text="+java.net.URLEncoder.encode(message.take(2000),"UTF-8")
+   startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)))
+  } catch(_:Exception) { Toast.makeText(this@MainActivity,"WhatsApp is not available. Install or update it.",Toast.LENGTH_LONG).show() } } }
   @JavascriptInterface fun openSettings() { runOnUiThread { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) } }
   @JavascriptInterface fun startScreenScan(): Boolean { val svc=ScreenReaderService.instance; if(svc==null){runOnUiThread{startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))};return false}; svc.startPolling(); return true }
   @JavascriptInterface fun stopScreenScan(){ScreenReaderService.instance?.stopPolling()}
