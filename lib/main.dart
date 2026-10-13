@@ -214,7 +214,8 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
           final command = spoken.toLowerCase();
           if (r.finalResult && (command.startsWith('open ') || command.startsWith('launch '))) {
             final requested = command.replaceFirst(RegExp(r'^(open|launch)\\s+'), '').trim();
-            final match = apps.where((a) => a.label.toLowerCase().contains(requested)).firstOrNull;
+            final matches = apps.where((a) => a.label.toLowerCase().contains(requested)).toList();
+            final match = matches.isEmpty ? null : matches.first;
             if (match != null) {
               setState(() => listening = false);
               speech.stop();
