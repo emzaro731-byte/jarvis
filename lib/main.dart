@@ -74,7 +74,10 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
   String status = 'Connecting to secure AI backend…';
   String page = 'Home';
   String clock = '';
-  bool busy = false, voiceReplies = true, listening = false, backendOK = false, loadingApps = false, overlayEnabled = false;
+  bool busy = false, voiceReplies = true, listening = false, backendOK = false, loadingApps = false, overlayEnabled = false, continuousScreenReading = false;
+  Timer? screenReadTimer;
+  Timer? voiceRestartTimer;
+  String lastScreenText = '';
   Timer? clockTimer;
   late final AnimationController pulse = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
 
@@ -221,17 +224,20 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
     await p.setString('chat_history', jsonEncode(lines.map((e) => e.toJson()).toList()));
   }
 
+  Future<String> _getScreenText() async {
+    final result = await launcherChannel.invokeMethod<Map<dynamic, dynamic>>('scanScreen');
+    if (result?['needsPermission'] == true) {
+      _snack('Enable Mavis Screen Reader in Android Accessibility settings, then return and say “scan my screen” again.');
+      return '';
+    }
+    return result?['text']?.toString().trim() ?? '';
+  }
+
   Future<void> _scanAndReadScreen() async {
-    _snack('Mavis is scanning visible screen text…');
     try {
-      final result = await launcherChannel.invokeMethod<Map<dynamic, dynamic>>('scanScreen');
-      if (result?['needsPermission'] == true) {
-        _snack('Enable Mavis Screen Reader in Android Accessibility settings, then return and say “scan and read my screen” again.');
-        return;
-      }
-      final screenText = result?['text']?.toString().trim() ?? '';
+      final screenText = await _getScreenText();
       if (screenText.isEmpty) {
-        _snack('I could not read text on this screen. Make sure the screen is open and try again.');
+        _snack('I could not read text on this screen. Keep the screen open and try again.');
         return;
       }
       setState(() => page = 'AI');
@@ -241,6 +247,86 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
     } on MissingPluginException {
       _snack('Install the latest Mavis APK to use screen scanning.');
     }
+  }
+
+  Future<void> _startContinuousScreenReading() async {
+    if (continuousScreenReading) return;
+    try {
+      final firstText = await _getScreenText();
+      if (firstText.isEmpty) return;
+      continuousScreenReading = true;
+      lastScreenText = firstText;
+      if (mounted) setState(() {});
+      _snack('Continuous screen reading is ON. Say “stop” to stop. Keep the microphone permission enabled.');
+      await tts.speak(firstText.length > 1800 ? firstText.substring(0, 1800) : firstText);
+      screenReadTimer?.cancel();
+      screenReadTimer = Timer.periodic(const Duration(seconds: 4), (_) => _readChangedScreen());
+      _ensureStopCommandListening();
+    } on PlatformException catch (e) {
+      _snack('Screen scan failed: ${e.message ?? e.code}');
+    } on MissingPluginException {
+      _snack('Install the latest Mavis APK to use screen scanning.');
+    }
+  }
+
+  Future<void> _readChangedScreen() async {
+    if (!continuousScreenReading) return;
+    try {
+      final text = await _getScreenText();
+      if (!continuousScreenReading || text.isEmpty || text == lastScreenText) return;
+      lastScreenText = text;
+      await tts.stop();
+      await tts.speak(text.length > 1800 ? text.substring(0, 1800) : text);
+    } catch (_) {}
+  }
+
+  Future<void> _stopContinuousScreenReading() async {
+    continuousScreenReading = false;
+    screenReadTimer?.cancel();
+    screenReadTimer = null;
+    voiceRestartTimer?.cancel();
+    await tts.stop();
+    await speech.stop();
+    if (mounted) setState(() => listening = false);
+    _snack('Continuous screen reading stopped.');
+  }
+
+  Future<void> _ensureStopCommandListening() async {
+    if (!continuousScreenReading) return;
+    try {
+      final available = await speech.initialize(
+        onStatus: (s) {
+          if (!continuousScreenReading) return;
+          if (s == 'done' || s == 'notListening') {
+            voiceRestartTimer?.cancel();
+            voiceRestartTimer = Timer(const Duration(milliseconds: 700), () {
+              if (continuousScreenReading) _ensureStopCommandListening();
+            });
+          }
+        },
+        onError: (_) {
+          if (continuousScreenReading) {
+            voiceRestartTimer?.cancel();
+            voiceRestartTimer = Timer(const Duration(seconds: 2), () {
+              if (continuousScreenReading) _ensureStopCommandListening();
+            });
+          }
+        },
+      );
+      if (!available || !continuousScreenReading) return;
+      await speech.listen(
+        onResult: (r) {
+          if (!continuousScreenReading || !r.finalResult) return;
+          final command = r.recognizedWords.toLowerCase().replaceAll(RegExp(r'[^a-z0-9 ]'), '').trim();
+          if (RegExp(r'(^| )(stop|stop reading|stop scanning|cancel reading|mavis stop)( |$)').hasMatch(command)) {
+            _stopContinuousScreenReading();
+          }
+        },
+        listenFor: const Duration(minutes: 1),
+        pauseFor: const Duration(seconds: 5),
+        partialResults: false,
+      );
+    } catch (_) {}
   }
 
   Future<void> _send([String? text]) async {
@@ -284,6 +370,10 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
   }
 
   Future<void> _voice() async {
+    if (continuousScreenReading) {
+      await _stopContinuousScreenReading();
+      return;
+    }
     final available = await speech.initialize(
       onStatus: (s) { if (mounted) setState(() => listening = s == 'listening'); },
       onError: (_) { if (mounted) setState(() => listening = false); },
@@ -311,15 +401,20 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
         } else {
           input.text = spoken;
           final command = spoken.toLowerCase().replaceAll(RegExp(r'[^a-z0-9 ]'), '').trim();
+          final stopCommand = command == 'stop' || command == 'stop reading' || command == 'stop scanning';
+          if (r.finalResult && stopCommand && continuousScreenReading) {
+            _stopContinuousScreenReading();
+            return;
+          }
           final scanCommand = command.contains('scan and read my screen') ||
               command.contains('read my screen') ||
               command.contains('scan my screen') ||
               command == 'scan screen' ||
               command.contains('read the screen');
           if (r.finalResult && scanCommand) {
-            setState(() => listening = false);
             await speech.stop();
-            await _scanAndReadScreen();
+            setState(() => listening = false);
+            await _startContinuousScreenReading();
             return;
           }
         }
@@ -393,6 +488,8 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin, 
     scroll.dispose();
     pulse.dispose();
     clockTimer?.cancel();
+    screenReadTimer?.cancel();
+    voiceRestartTimer?.cancel();
     speech.stop();
     tts.stop();
     super.dispose();
