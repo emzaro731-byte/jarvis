@@ -74,7 +74,7 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
   String status = 'Connecting to secure AI backend…';
   String page = 'Home';
   String clock = '';
-  bool busy = false, voiceReplies = true, listening = false, backendOK = false, loadingApps = false;
+  bool busy = false, voiceReplies = true, listening = false, backendOK = false, loadingApps = false, overlayEnabled = false;
   Timer? clockTimer;
   late final AnimationController pulse = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
 
@@ -84,8 +84,15 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
     _updateClock();
     clockTimer = Timer.periodic(const Duration(seconds: 1), (_) => _updateClock());
     appSearch.addListener(() { if (mounted) setState(() {}); });
+    launcherChannel.setMethodCallHandler((call) async {
+      if (call.method == 'openAiFromOverlay' && mounted) {
+        setState(() => page = 'AI');
+        _jumpBottom();
+      }
+    });
     _init();
     _loadApps();
+    _consumeOverlayLaunch();
   }
 
   void _updateClock() {
@@ -112,6 +119,36 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
     await _testBackend();
   }
 
+  Future<void> _consumeOverlayLaunch() async {
+    try {
+      final openAi = await launcherChannel.invokeMethod<bool>('consumeOpenAiIntent') ?? false;
+      if (openAi && mounted) setState(() => page = 'AI');
+    } catch (_) {}
+  }
+
+  Future<void> _toggleOverlay() async {
+    try {
+      final allowed = await launcherChannel.invokeMethod<bool>('hasOverlayPermission') ?? false;
+      if (!allowed) {
+        await launcherChannel.invokeMethod<bool>('requestOverlayPermission');
+        _snack('Allow Display over other apps for JARVIS, return here, then tap Enable again.');
+        return;
+      }
+      if (overlayEnabled) {
+        await launcherChannel.invokeMethod<bool>('stopOverlay');
+        if (mounted) setState(() => overlayEnabled = false);
+        _snack('Floating JARVIS button stopped.');
+      } else {
+        await launcherChannel.invokeMethod<bool>('startOverlay');
+        if (mounted) setState(() => overlayEnabled = true);
+        _snack('Floating JARVIS button is active over other apps.');
+      }
+    } on PlatformException catch (e) {
+      _snack('Overlay error: ${e.message ?? e.code}');
+    } on MissingPluginException {
+      _snack('Native overlay code is missing. Build and install the latest APK.');
+    }
+  }
   Future<void> _loadApps() async {
     if (loadingApps) return;
     setState(() => loadingApps = true);
@@ -255,6 +292,14 @@ class _JarvisHomeState extends State<JarvisHome> with TickerProviderStateMixin {
           const SizedBox(height: 8),
           const Text('Keep AI provider keys on the server, not in the app.', style: TextStyle(color: Colors.white60, fontSize: 12)),
           SwitchListTile(value: voiceOn, onChanged: (v) => update(() => voiceOn = v), title: const Text('Speak AI replies'), activeColor: cyan, contentPadding: EdgeInsets.zero),
+          const SizedBox(height: 8),
+          SizedBox(width: double.infinity, child: FilledButton.icon(
+            onPressed: () async { await _toggleOverlay(); if (ctx.mounted) update(() {}); },
+            icon: Icon(overlayEnabled ? Icons.stop_circle_outlined : Icons.open_in_new_rounded),
+            label: Text(overlayEnabled ? 'Stop floating JARVIS button' : 'Enable floating JARVIS button'),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF19C76A), foregroundColor: const Color(0xFF04130A)),
+          )),
+          const Padding(padding: EdgeInsets.only(top: 6, bottom: 8), child: Text('The green J button stays above other apps. Android will ask you to allow Display over other apps the first time.', style: TextStyle(color: Colors.white60, fontSize: 12))),
           Row(children: [
             Expanded(child: FilledButton(onPressed: () async {
               final u = controller.text.trim().replaceAll(RegExp(r'/+$'), '');
