@@ -31,7 +31,7 @@ jobs:
           cp android/AndroidManifest.xml /tmp/jarvis_flutter/android/app/src/main/AndroidManifest.xml
           mkdir -p /tmp/jarvis_flutter/android/app/src/main/kotlin/com/emzaro/jarvis
           cp android/app/src/main/kotlin/com/emzaro/jarvis/MainActivity.kt /tmp/jarvis_flutter/android/app/src/main/kotlin/com/emzaro/jarvis/MainActivity.kt
-          python3 -m pip install --quiet pillow
+          python3 -m pip install --break-system-packages --quiet pillow
           python3 - <<'PY'
           from PIL import Image
           from pathlib import Path
